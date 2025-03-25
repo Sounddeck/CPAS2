@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deepseek Studio</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f3f4f6;
+      color: #1f2937;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    h1 {
+      color: #3b82f6;
+    }
+    
+    .chat-box {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    
+    .messages {
+      height: 400px;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    
+    .message {
+      margin-bottom: 15px;
+      max-width: 80%;
+      padding: 10px 15px;
+      border-radius: 8px;
+    }
+    
+    .user-message {
+      background-color: #3b82f6;
+      color: white;
+      margin-left: auto;
+    }
+    
+    .assistant-message {
+      background-color: #f3f4f6;
+    }
+    
+    .input-area {
+      display: flex;
+      padding: 15px;
+      border-top: 1px solid #e5e7eb;
+    }
+    
+    textarea {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      resize: none;
+      height: 40px;
+    }
+    
+    button {
+      margin-left: 10px;
+      padding: 0 20px;
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    button:hover {
+      background-color: #2563eb;
+    }
+    
+    .model-selector {
+      margin-bottom: 15px;
+      text-align: right;
+    }
+    
+    select {
+      padding: 5px 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Deepseek Studio</h1>
+      <p>Your local AI development environment</p>
+    </header>
+    
+    <div class="model-selector">
+      <select id="model-select">
+        <option value="llama3.2:latest">Llama 3.2</option>
+      </select>
+    </div>
+    
+    <div class="chat-box">
+      <div id="messages" class="messages">
+        <div class="message assistant-message">
+          Hello! I'm your AI assistant powered by Llama 3.2. How can I help you today?
+        </div>
+      </div>
+      
+      <div class="input-area">
+        <textarea id="user-input" placeholder="Type your message here..."></textarea>
+        <button id="send-button">Send</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const messagesContainer = document.getElementById('messages');
+      const userInput = document.getElementById('user-input');
+      const sendButton = document.getElementById('send-button');
+      const modelSelect = document.getElementById('model-select');
+      
+      // Load available models
+      fetch('/api/ollama/models')
+        .then(response => response.json())
+        .then(data => {
+          // Clear existing options
+          modelSelect.innerHTML = '';
+          
+          // Add options for each model
+          data.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model;
+            option.textContent = model;
+            modelSelect.appendChild(option);
+          });
+        })
+        .catch(error => console.error('Error loading models:', error));
+      
+      // Send message function
+      function sendMessage() {
+        const message = userInput.value.trim();
+        if (!message) return;
+        
+        // Add user message to UI
+        const userMessageElement = document.createElement('div');
+        userMessageElement.className = 'message user-message';
+        userMessageElement.textContent = message;
+        messagesContainer.appendChild(userMessageElement);
+        
+        // Clear input
+        userInput.value = '';
+        
+        // Scroll to bottom
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        
+        // Send to API
+        fetch('/api/ollama/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages: [{ role: 'user', content: message }],
+            model: modelSelect.value
+          }),
+        })
+        .then(response => response.json())
+        .then(data => {
+          // Add AI response to UI
+          const assistantMessageElement = document.createElement('div');
+          assistantMessageElement.className = 'message assistant-message';
+          assistantMessageElement.textContent = data.message?.content || 'No response received';
+          messagesContainer.appendChild(assistantMessageElement);
+          
+          // Scroll to bottom
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        })
+        .catch(error => {
+          console.error('Error sending message:', error);
+          
+          // Add error message
+          const errorMessageElement = document.createElement('div');
+          errorMessageElement.className = 'message assistant-message';
+          errorMessageElement.textContent = 'Error: Could not get a response. Please try again.';
+          messagesContainer.appendChild(errorMessageElement);
+          
+          // Scroll to bottom
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        });
+      }
+      
+      // Event listeners
+      sendButton.addEventListener('click', sendMessage);
+      
+      userInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+
